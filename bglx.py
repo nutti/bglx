@@ -6,7 +6,7 @@ from gpu_extras.batch import batch_for_shader
 GL_LINES = 0
 GL_LINE_STRIP = 1
 GL_TRIANGLES = 5
-GL_TRIANGLES_FAN = 6
+GL_TRIANGLE_FAN = 6
 GL_QUADS = 4
 
 class InternalData:
@@ -101,7 +101,7 @@ def glEnd():
         batch = batch_for_shader(shader, 'TRIS', {"pos": coords},
                                  indices=indices)
 
-    elif inst.get_prim_mode() == GL_TRIANGLES_FAN:
+    elif inst.get_prim_mode() == GL_TRIANGLE_FAN:
         indices = []
         for i in range(1, len(coords) - 1):
             indices.append([0, i, i + 1])

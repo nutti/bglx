@@ -41,6 +41,9 @@ class InternalData:
     def add_vert(self, v):
         self.verts.append(v)
 
+    def add_tex_coord(self, uv):
+        self.tex_coords.append(uv)
+
     def set_color(self, c):
         self.color = c
 
@@ -48,6 +51,7 @@ class InternalData:
         self.prim_mode = None
         self.verts = []
         self.dims = None
+        self.tex_coords = []
 
     def get_verts(self):
         return self.verts
@@ -60,6 +64,9 @@ class InternalData:
 
     def get_color(self):
         return self.color
+
+    def get_tex_coords(self):
+        return self.tex_coords
 
 
 def glBegin(mode):
@@ -78,47 +85,58 @@ def glEnd():
 
     color = inst.get_color()
     coords = inst.get_verts()
+    tex_coords = inst.get_tex_coords()
     if inst.get_dims() == 2:
-        shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
+        if len(tex_coords) == 0:
+            shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
+        else:
+            shader = gpu.shader.from_builtin('2D_IMAGE')
     else:
         raise NotImplemented("get_dims() != 2")
 
+    if len(tex_coords) == 0:
+        data = {
+            "pos": coords,
+        }
+    else:
+        data = {
+            "pos": coords,
+            "texCoord": tex_coords
+        }
 
     if inst.get_prim_mode() == GL_LINES:
         indices = []
         for i in range(0, len(coords), 2):
             indices.append([i, i + 1])
-        batch = batch_for_shader(shader, 'LINES', {"pos": coords},
-                                 indices=indices)
+        batch = batch_for_shader(shader, 'LINES', data, indices=indices)
 
     elif inst.get_prim_mode() == GL_LINE_STRIP:
-        batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": coords})
+        batch = batch_for_shader(shader, 'LINE_STRIP', data)
 
     elif inst.get_prim_mode() == GL_TRIANGLES:
         indices = []
         for i in range(0, len(coords), 3):
             indices.append([i, i + 1, i + 2])
-        batch = batch_for_shader(shader, 'TRIS', {"pos": coords},
-                                 indices=indices)
+        batch = batch_for_shader(shader, 'TRIS', data, indices=indices)
 
     elif inst.get_prim_mode() == GL_TRIANGLE_FAN:
         indices = []
         for i in range(1, len(coords) - 1):
             indices.append([0, i, i + 1])
-        batch = batch_for_shader(shader, 'TRIS', {"pos":coords},
-                                 indices=indices)
+        batch = batch_for_shader(shader, 'TRIS', data, indices=indices)
 
     elif inst.get_prim_mode() == GL_QUADS:
         indices = []
         for i in range(0, len(coords), 4):
-            indices.append([i, i + 1, i + 2, i +3])
-        batch = batch_for_shader(shader, 'TRIS', {"pos": coords},
-                                 indices=indices)
+            indices.extend([[i, i + 1, i + 2], [i + 2, i + 1, i + 3]])
+        batch = batch_for_shader(shader, 'TRIS', data, indices=indices)
     else:
         raise NotImplemented("get_prim_mode() != (GL_LINES|GL_TRIANGLES|GL_QUADS)")
 
     shader.bind()
     shader.uniform_float("color", color)
+    if len(tex_coords) == 0:
+        shader.uniform_int("image", 0)
     batch.draw(shader)
 
     inst.clear()
@@ -130,3 +148,6 @@ def glVertex2f(x, y):
     inst.set_dims(2)
 
 
+def glTexCoord2f(u, v):
+    inst = InternalData.get_instance()
+    inst.add_tex_coord([u, v])

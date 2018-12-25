@@ -80,6 +80,40 @@ def glColor4f(r, g, b, a):
     inst.set_color([r, g, b, a])
 
 
+def _get_transparency_shader():
+    vertex_shader = '''
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    
+    in vec2 pos;
+    in vec2 texCoord;
+    out vec2 uvInterp;
+    
+    void main()
+    {
+        uvInterp = texCoord;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos.xy, 0.0, 1.0);
+        gl_Position.z = 1.0;
+    }
+    '''
+
+    fragment_shader = '''
+    uniform sampler2D image;
+    uniform vec4 color;
+    
+    in vec2 uvInterp;
+    out vec4 fragColor;
+    
+    void main()
+    {
+        fragColor = texture(image, uvInterp);
+        fragColor.a = color.a;
+    }
+    '''
+
+    return vertex_shader, fragment_shader
+
+
 def glEnd():
     inst = InternalData.get_instance()
 
@@ -90,7 +124,9 @@ def glEnd():
         if len(tex_coords) == 0:
             shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
         else:
-            shader = gpu.shader.from_builtin('2D_IMAGE')
+            #shader = gpu.shader.from_builtin('2D_IMAGE')
+            vert_shader, frag_shader = _get_transparency_shader()
+            shader = gpu.types.GPUShader(vert_shader, frag_shader)
     else:
         raise NotImplemented("get_dims() != 2")
 
@@ -128,15 +164,17 @@ def glEnd():
     elif inst.get_prim_mode() == GL_QUADS:
         indices = []
         for i in range(0, len(coords), 4):
-            indices.extend([[i, i + 1, i + 2], [i + 2, i + 1, i + 3]])
+            indices.extend([[i, i + 1, i + 2], [i + 2, i + 3, i]])
         batch = batch_for_shader(shader, 'TRIS', data, indices=indices)
     else:
         raise NotImplemented("get_prim_mode() != (GL_LINES|GL_TRIANGLES|GL_QUADS)")
 
     shader.bind()
-    shader.uniform_float("color", color)
-    if len(tex_coords) == 0:
+    if len(tex_coords) != 0:
+        shader.uniform_float("modelViewMatrix", gpu.matrix.get_model_view_matrix())
+        shader.uniform_float("projectionMatrix", gpu.matrix.get_projection_matrix())
         shader.uniform_int("image", 0)
+    shader.uniform_float("color", color)
     batch.draw(shader)
 
     inst.clear()

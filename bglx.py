@@ -18,7 +18,11 @@ class InternalData:
 
     @classmethod
     def __internal_new(cls):
-        return super().__new__(cls)
+        inst = super().__new__(cls)
+        inst.color = [1.0, 1.0, 1.0, 1.0]
+        inst.line_width = 1.0
+
+        return inst
 
     @classmethod
     def get_instance(cls):
@@ -47,6 +51,9 @@ class InternalData:
     def set_color(self, c):
         self.color = c
 
+    def set_line_width(self, width):
+        self.line_width = width
+
     def clear(self):
         self.prim_mode = None
         self.verts = []
@@ -65,19 +72,32 @@ class InternalData:
     def get_color(self):
         return self.color
 
+    def get_line_width(self):
+        return self.line_width
+
     def get_tex_coords(self):
         return self.tex_coords
+
+
+def glLineWidth(width):
+    inst = InternalData.get_instance()
+    inst.set_line_width(width)
+
+
+def glColor3f(r, g, b):
+    inst = InternalData.get_instance()
+    inst.set_color([r, g, b, 1.0])
+
+
+def glColor4f(r, g, b, a):
+    inst = InternalData.get_instance()
+    inst.set_color([r, g, b, a])
 
 
 def glBegin(mode):
     inst = InternalData.get_instance()
     inst.init()
     inst.set_prim_mode(mode)
-
-
-def glColor4f(r, g, b, a):
-    inst = InternalData.get_instance()
-    inst.set_color([r, g, b, a])
 
 
 def _get_transparency_shader():
